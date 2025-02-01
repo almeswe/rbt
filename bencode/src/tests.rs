@@ -27,16 +27,16 @@ fn test_try_decode_string() {
 
 #[test]
 fn test_try_decode_list() {
-    assert_eq!(None, Vec::try_parse(""));
-    assert_eq!(Some(vec![]), Vec::try_parse("le"));
-    assert_eq!(Some(vec![BencodeItem::Num(42)]), Vec::try_parse("li42ee"));
-    assert_eq!(Some(vec![BencodeItem::Str(String::from("test"))]), Vec::try_parse("l4:teste"));
+    assert_eq!(None, List::try_parse(""));
+    assert_eq!(Some(vec![]), List::try_parse("le"));
+    assert_eq!(Some(vec![BencodeItem::Num(42)]), List::try_parse("li42ee"));
+    assert_eq!(Some(vec![BencodeItem::Str(String::from("test"))]), List::try_parse("l4:teste"));
     assert_eq!(
         Some(vec![
             BencodeItem::Num(1),
             BencodeItem::Str(String::from("hello"))
         ]),
-        Vec::try_parse("li1e5:helloe")
+        List::try_parse("li1e5:helloe")
     );
     assert_eq!(
         Some(vec![
@@ -46,6 +46,24 @@ fn test_try_decode_list() {
             ]),
             BencodeItem::Str(String::from("list")),
         ]),
-        Vec::try_parse("lli1e6:nestede4:liste")
+        List::try_parse("lli1e6:nestede4:liste")
     );
+}
+
+#[test]
+fn test_try_decode_pair() {
+    assert_eq!(None, Pair::try_parse(""));
+    assert_eq!(Some(Pair::new()), Pair::try_parse("de"));
+    let mut pair1 = Pair::new();
+    pair1.insert(String::from("wiki"), BencodeItem::Str(String::from("bencode")));
+    pair1.insert(String::from("meaning"), BencodeItem::Num(42));
+    assert_eq!(Some(pair1.clone()), Pair::try_parse("d4:wiki7:bencode7:meaningi42ee"));
+    let mut pair2 = Pair::new();
+    pair2.insert(String::from("list"), BencodeItem::List(vec![
+        BencodeItem::Num(1),
+        BencodeItem::Str(String::from("str2")),
+        BencodeItem::Pair(pair1)
+    ]));
+    //"d4:list l i1e 4:str2 d4:wiki7:bencode7:meaningi42ee e e"
+    assert_eq!(Some(pair2), Pair::try_parse("d4:listli1e4:str2d4:wiki7:bencode7:meaningi42eeee"));
 }

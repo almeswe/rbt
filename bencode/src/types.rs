@@ -1,28 +1,30 @@
 use std::collections::HashMap;
 
+pub type List = Vec<BencodeItem>;
+pub type Pair = HashMap<String, BencodeItem>;
+
 pub trait Bencode {
+    fn bsize(&self) -> usize;
     fn try_parse(from: &str) -> Option<Self> 
         where Self: Sized;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BencodeItem {
     Num(i64),
     Str(String),
-    List(Vec<BencodeItem>),
-    Pair(HashMap<String, BencodeItem>)
+    List(List),
+    Pair(Pair)
 }
 
 impl BencodeItem {
     pub fn size(&self) -> usize {
         //todo: refactor
         match self {
-            BencodeItem::Num(x) => x.to_string().len() + 2,
-            BencodeItem::Str(x) => x.len() + x.len().to_string().len() + 1,
-            BencodeItem::List(x) => x.iter().map(|z| z.size()).sum::<usize>() + 2,
-            _ => todo!()
-            //BencodeItem::Pair(x) => x.iter().map(|z| z.0.size()).sum::<usize>() +
-            //                        x.iter().map(|z| z.1.size()).sum::<usize>()
+            BencodeItem::Num(x) => x.bsize(),
+            BencodeItem::Str(x) => x.bsize(),
+            BencodeItem::List(x) => x.bsize(),
+            BencodeItem::Pair(x) => x.bsize()
         }
     }
 
@@ -35,8 +37,8 @@ impl BencodeItem {
         assert!(byte.is_ascii_graphic());
         return Some(match char::from(byte) {
             'i' => BencodeItem::Num(i64::try_parse(from)?),
-            'l' => BencodeItem::List(Vec::try_parse(from)?),
-            //todo: return here.
+            'l' => BencodeItem::List(List::try_parse(from)?),
+            'd' => BencodeItem::Pair(Pair::try_parse(from)?),
             _ => BencodeItem::Str(String::try_parse(from)?)
         });
     }         
