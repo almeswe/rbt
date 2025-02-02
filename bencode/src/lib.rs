@@ -1,3 +1,3 @@
-mod types; use types::*;
-mod parse; use parse::*;
-mod tests; use tests::*;
+pub mod types; pub use types::*;
+pub mod parse; pub use parse::*;
+pub mod tests; pub use tests::*;
