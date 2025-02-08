@@ -41,14 +41,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rbt"
-version = "0.1.0"
-dependencies = [
- "bencode",
- "torrent",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"

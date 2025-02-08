@@ -1,5 +1,4 @@
 use crate::types::*;
-use crate::parse::*;
 
 #[test]
 fn test_try_decode_i64() {

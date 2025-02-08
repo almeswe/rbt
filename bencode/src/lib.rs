@@ -1,4 +1,6 @@
-pub mod dump; pub use dump::*;
-pub mod types; pub use types::*;
-pub mod parse; pub use parse::*;
-pub mod tests; pub use tests::*;
+pub mod types;
+pub mod parse;
+#[cfg(test)]
+pub mod tests;
+#[cfg(feature = "json_dump")]
+pub mod dump;

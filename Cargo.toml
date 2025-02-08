@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bencode = { path = "./bencode" }
+bencode = { path = "./bencode", features = ["json_dump"]}
+torrent = { path = "./torrent"}
