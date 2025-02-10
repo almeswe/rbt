@@ -8,10 +8,10 @@ pub struct TorrentFile {
 
 #[derive(Debug)]
 pub struct Torrent<'a> {
-    pub announce: String,
+    pub announce: Option<String>,
+    pub announce_list: Option<Vec<Vec<String>>>,
     pub files: Vec<TorrentFile>,
     pub pieces: Vec<&'a [u8]>,
-    pub name: String,
     pub piece_size: u64
 }
 
@@ -42,13 +42,21 @@ impl<'a> Torrent<'a> {
         root.get(key)?.to_pair()
     }
 
-    fn get_name(root: &'a Pair) -> Option<String> {
-        let x = Self::get_pair_by_key("info", root)?;
-        Self::get_string_by_key("name", x)
-    }
-
     fn get_announce(root: &Pair) -> Option<String> {
         Self::get_string_by_key("announce", root)
+    }
+
+    fn get_announce_list(root: &'a Pair) -> Option<Vec<Vec<String>>> {
+        let mut vec = vec![];
+        let x = Self::get_list_by_key("announce-list", root)?;
+        for i in 0..x.len() {
+            let ext_vec = x[i].to_list()?;
+            vec.push(vec![]);
+            for item in ext_vec {
+                vec[i].push(item.to_string()?);
+            }
+        }
+        Some(vec)
     }
 
     fn get_piece_size(root: &'a Pair) -> Option<u64> {
@@ -57,16 +65,26 @@ impl<'a> Torrent<'a> {
     }
 
     fn get_files(root: &'a Pair) -> Option<Vec<TorrentFile>> {
-        let x = Self::get_pair_by_key("info", root)?;
-        let x = Self::get_list_by_key("files", x)?;
         let mut vec = vec![];
-        for item in x {
-            let item = item.to_pair()?;
-            vec.push(TorrentFile {
-                size: Self::get_num_by_key("length", item)?,
-                path: Self::get_list_by_key("path", item)?[0].to_string()?
-            })
-        }
+        let info = Self::get_pair_by_key("info", root)?;
+        let x = Self::get_list_by_key("files", info);
+        match x {
+            None => {
+                vec.push(TorrentFile {
+                    size: Self::get_num_by_key("length", info)?,
+                    path: Self::get_string_by_key("name", info)?
+                });
+            },
+            Some(x) => {
+                for item in x {
+                    let item = item.to_pair()?;
+                    vec.push(TorrentFile {
+                        size: Self::get_num_by_key("length", item)?,
+                        path: Self::get_list_by_key("path", item)?[0].to_string()?
+                    })
+                }
+            }
+        };
         Some(vec)
     }
 
@@ -83,10 +101,10 @@ impl<'a> Torrent<'a> {
 
     pub fn try_new(root: &'a Pair) -> Option<Torrent<'a>> {
         Some(Torrent {
-            announce: Self::get_announce(root)?,
+            announce: Self::get_announce(root),
+            announce_list: Self::get_announce_list(root),
             files: Self::get_files(root)?,
             piece_size: Self::get_piece_size(root)?,
-            name: Self::get_name(root)?,
             pieces: Self::get_pieces(root)?
         })
     }
