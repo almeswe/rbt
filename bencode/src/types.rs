@@ -5,7 +5,7 @@ pub type List = Vec<BencodeItem>;
 pub type Pair = HashMap<String, BencodeItem>;
 
 pub trait Bencode {
-    fn bsize(&self) -> usize;
+    fn bencode_len(&self) -> usize;
     fn try_parse(from: &[u8]) -> Option<Self> 
         where Self: Sized;
 }
@@ -22,10 +22,10 @@ impl BencodeItem {
     pub fn size(&self) -> usize {
         //todo: refactor
         match self {
-            BencodeItem::Num(x) => x.bsize(),
-            BencodeItem::Str(x) => x.bsize(),
-            BencodeItem::List(x) => x.bsize(),
-            BencodeItem::Pair(x) => x.bsize()
+            BencodeItem::Num(x) => x.bencode_len(),
+            BencodeItem::Str(x) => x.bencode_len(),
+            BencodeItem::List(x) => x.bencode_len(),
+            BencodeItem::Pair(x) => x.bencode_len()
         }
     }
 

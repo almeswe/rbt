@@ -17,7 +17,7 @@ impl FindItem for &[u8] {
 }
 
 impl Bencode for i64 {
-    fn bsize(&self) -> usize {
+    fn bencode_len(&self) -> usize {
         self.to_string().len() + 2
     }
     
@@ -30,7 +30,7 @@ impl Bencode for i64 {
 }
 
 impl Bencode for Bytes {
-    fn bsize(&self) -> usize {
+    fn bencode_len(&self) -> usize {
         self.len() + self.len().to_string().len() + 1
     }
     
@@ -46,7 +46,7 @@ impl Bencode for Bytes {
 }
 
 impl Bencode for String {
-    fn bsize(&self) -> usize {
+    fn bencode_len(&self) -> usize {
         self.len() + self.len().to_string().len() + 1
     }
     
@@ -56,7 +56,7 @@ impl Bencode for String {
 }
 
 impl Bencode for List {
-    fn bsize(&self) -> usize {
+    fn bencode_len(&self) -> usize {
         self.iter().map(|z| z.size()).sum::<usize>() + 2
     }
 
@@ -78,8 +78,8 @@ impl Bencode for List {
 }
 
 impl Bencode for Pair {
-    fn bsize(&self) -> usize {
-        self.iter().map(|z| z.0.bsize() + z.1.size()).sum::<usize>() + 2
+    fn bencode_len(&self) -> usize {
+        self.iter().map(|z| z.0.bencode_len() + z.1.size()).sum::<usize>() + 2
     }
     
     fn try_parse(from: &[u8]) -> Option<Pair> {
@@ -90,7 +90,7 @@ impl Bencode for Pair {
         let mut from = &from[1..];
         while from.len() > 0 && !from.starts_with(b"e") {
             let key = String::try_parse(from)?;
-            from = &from[key.bsize()..];
+            from = &from[key.bencode_len()..];
             let val = BencodeItem::try_parse(from)?;
             from = &from[val.size()..];
             if let Some(_) = pair.insert(key, val) {
