@@ -10,7 +10,7 @@ fn serialize_num<S: Serializer>(x: i64, serializer: S) -> Result<S::Ok, S::Error
     serializer.serialize_i64(x)
 }
 
-fn serialize_str<S: Serializer>(x: &Bytes, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_bin<S: Serializer>(x: &Bytes, serializer: S) -> Result<S::Ok, S::Error> {
     let err = String::from_utf8(x.to_vec()).ok();
     if let Some(x) = err {
         serializer.serialize_str(&x)
@@ -20,29 +20,34 @@ fn serialize_str<S: Serializer>(x: &Bytes, serializer: S) -> Result<S::Ok, S::Er
     }
 }
 
-fn serialize_list<S: Serializer>(x: &List, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_str<S: Serializer>(x: &String, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(x)
+}
+
+fn serialize_list<S: Serializer>(x: &Box<List>, serializer: S) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_seq(Some(x.len()))?;
-    for item in x {
+    for item in x.as_ref() {
         seq.serialize_element(item)?;
     }
     seq.end()
 }
 
-fn serialize_pair<S: Serializer>(x: &Pair, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_pair<S: Serializer>(x: &Box<Pair>, serializer: S) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_map(Some(x.len()))?;
-    for item in x {
+    for item in x.as_ref() {
         seq.serialize_entry(item.0, item.1)?;
     }
     seq.end()
 }
 
-impl Serialize for BencodeItem {
+impl<'a> Serialize for BencodeItem<'a> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            BencodeItem::Num(x) => serialize_num(*x, serializer),
-            BencodeItem::Str(x) => serialize_str(x, serializer),
-            BencodeItem::List(x) => serialize_list(x, serializer),
-            BencodeItem::Pair(x) => serialize_pair(x, serializer),
+        match &self.data {
+            BencodeExact::Num(x) => serialize_num(*x, serializer),
+            BencodeExact::Bin(x) => serialize_bin(x, serializer),
+            BencodeExact::Str(x) => serialize_str(x, serializer),
+            BencodeExact::List(x) => serialize_list(x, serializer),
+            BencodeExact::Pair(x) => serialize_pair(x, serializer)
         }
     }
 }
