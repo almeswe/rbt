@@ -24,17 +24,17 @@ fn serialize_str<S: Serializer>(x: &String, serializer: S) -> Result<S::Ok, S::E
     serializer.serialize_str(x)
 }
 
-fn serialize_list<S: Serializer>(x: &Box<List>, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_list<S: Serializer>(x: &List, serializer: S) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_seq(Some(x.len()))?;
-    for item in x.as_ref() {
+    for item in x {
         seq.serialize_element(item)?;
     }
     seq.end()
 }
 
-fn serialize_pair<S: Serializer>(x: &Box<Pair>, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_pair<S: Serializer>(x: &Pair, serializer: S) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_map(Some(x.len()))?;
-    for item in x.as_ref() {
+    for item in x {
         seq.serialize_entry(item.0, item.1)?;
     }
     seq.end()

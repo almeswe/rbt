@@ -20,13 +20,12 @@ pub enum BencodeExact<'a> {
     Num(i64),
     Str(String),
     Bin(&'a Bytes<'a>),
-    List(Box<List<'a>>),
-    Pair(Box<Pair<'a>>)
+    List(List<'a>),
+    Pair(Pair<'a>)
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BencodeItem<'a> {
     pub from: &'a [u8],
     pub data: BencodeExact<'a>,
-    pub hash: Option<Box<[u8; 20]>>
 }

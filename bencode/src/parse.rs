@@ -39,7 +39,7 @@ fn try_parse_list<'a>(from: &'a [u8]) -> Option<BencodeItem<'a>> {
         return None;
     }
     let mut size = 1;
-    let mut list = Box::new(List::new());
+    let mut list = List::new();
     let mut part = &from[size..];
     while size < from.len() && !part.starts_with(b"e") {
         let item = BencodeItem::try_parse(part)?;
@@ -58,7 +58,7 @@ fn try_parse_pair<'a>(from: &'a [u8]) -> Option<BencodeItem<'a>> {
         return None;
     }
     let mut size = 1;
-    let mut pair = Box::new(Pair::new());
+    let mut pair = Pair::new();
     let mut part = &from[size..];
     while size < from.len() && !part.starts_with(b"e") {
         let key = try_parse_str(part)?;
@@ -81,23 +81,23 @@ fn try_parse_pair<'a>(from: &'a [u8]) -> Option<BencodeItem<'a>> {
 
 impl<'a> BencodeItem<'a> {
     pub fn new_num(from: &'a [u8], x: i64) -> BencodeItem<'a> {
-        BencodeItem { from: from, data: BencodeExact::Num(x), hash: None }
+        BencodeItem { from: from, data: BencodeExact::Num(x) }
     }
 
     pub fn new_bin(from: &'a [u8], x: &'a Bytes) -> BencodeItem<'a> {
-        BencodeItem { from: from, data: BencodeExact::Bin(x), hash: None }
+        BencodeItem { from: from, data: BencodeExact::Bin(x) }
     }
 
     pub fn new_str(from: &'a [u8], x: String) -> BencodeItem<'a> {
-        BencodeItem { from: from, data: BencodeExact::Str(x), hash: None }
+        BencodeItem { from: from, data: BencodeExact::Str(x) }
     }
 
-    pub fn new_list(from: &'a [u8], x: Box<List<'a>>) -> BencodeItem<'a> {
-        BencodeItem { from: from, data: BencodeExact::List(x), hash: None }
+    pub fn new_list(from: &'a [u8], x: List<'a>) -> BencodeItem<'a> {
+        BencodeItem { from: from, data: BencodeExact::List(x) }
     }
 
-    pub fn new_pair(from: &'a [u8], x: Box<Pair<'a>>) -> BencodeItem<'a> {
-        BencodeItem { from: from, data: BencodeExact::Pair(x), hash: None }
+    pub fn new_pair(from: &'a [u8], x: Pair<'a>) -> BencodeItem<'a> {
+        BencodeItem { from: from, data: BencodeExact::Pair(x) }
     }
 
     pub fn to_num(&self) -> Option<i64> {
@@ -107,28 +107,31 @@ impl<'a> BencodeItem<'a> {
         None
     }
 
-    pub fn to_str(&self) -> Option<&String> {
+    pub fn to_str(&self) -> Option<String> {
+        if let BencodeExact::Bin(x) = &self.data {
+            return String::from_utf8(x.to_vec()).ok();
+        }
         if let BencodeExact::Str(x) = &self.data {
-            return Some(x);
+            return Some(x.clone());
         }
         None
     }
 
-    pub fn to_bin(&self) -> Option<&Bytes> {
+    pub fn to_bin(&self) -> Option<&'a Bytes> {
         if let BencodeExact::Bin(x) = self.data {
             return Some(x);
         }
         None
     }
 
-    pub fn to_list(&self) -> Option<&Box<List>> {
+    pub fn to_list(&self) -> Option<&'a List> {
         if let BencodeExact::List(x) = &self.data {
             return Some(x);
         }
         None
     }
 
-    pub fn to_pair(&self) -> Option<&Box<Pair>> {
+    pub fn to_pair(&self) -> Option<&'a Pair> {
         if let BencodeExact::Pair(x) = &self.data {
             return Some(x);
         }
@@ -195,32 +198,31 @@ fn test_try_parse_str() {
 #[test]
 fn test_try_parse_list() {
     assert_eq!(None, try_parse_list(b""));
-    assert_eq!(Some(&Box::new(vec![])), try_parse_list(b"le").unwrap().to_list());
-    assert_eq!(Some(&Box::new(
-        vec![BencodeItem::new_num(b"i42e", 42)])),
-        try_parse_list(b"li42ee").unwrap().to_list()
-    );
-    assert_eq!(Some(&Box::new(
-        vec![BencodeItem::new_bin(b"4:test", b"test")])),
-        try_parse_list(b"l4:teste").unwrap().to_list()
+    assert_eq!(List::new(), *try_parse_list(b"le").unwrap().to_list().unwrap());
+    assert_eq!(
+        vec![BencodeItem::new_num(b"i42e", 42)],
+        *try_parse_list(b"li42ee").unwrap().to_list().unwrap()
     );
     assert_eq!(
-        Some(&Box::new(vec![
+        vec![BencodeItem::new_bin(b"4:test", b"test")],
+        *try_parse_list(b"l4:teste").unwrap().to_list().unwrap()
+    );
+    assert_eq!(
+        vec![
             BencodeItem::new_num(b"i1e", 1),
             BencodeItem::new_bin(b"5:hello", b"hello")
-        ])),
-        try_parse_list(b"li1e5:helloe").unwrap().to_list()
+        ],
+        *try_parse_list(b"li1e5:helloe").unwrap().to_list().unwrap()
     );
     assert_eq!(
-        Some(&Box::new(vec![
-                BencodeItem::new_list(b"li1e6:nestede", Box::new(vec![
-                    BencodeItem::new_num(b"i1e", 1),
-                    BencodeItem::new_bin(b"6:nested", b"nested")
-                ])),
-                BencodeItem::new_bin(b"4:list", b"list"),
-            ])
-        ),
-        try_parse_list(b"lli1e6:nestede4:liste").unwrap().to_list()
+        vec![
+            BencodeItem::new_list(b"li1e6:nestede", vec![
+                BencodeItem::new_num(b"i1e", 1),
+                BencodeItem::new_bin(b"6:nested", b"nested")
+            ]),
+            BencodeItem::new_bin(b"4:list", b"list"),
+        ],
+        *try_parse_list(b"lli1e6:nestede4:liste").unwrap().to_list().unwrap()
     );
     assert_eq!(b"li1e5:helloe", try_parse_list(b"li1e5:helloe").unwrap().from);
     assert_eq!(b"lli1e6:nestede4:liste", try_parse_list(b"lli1e6:nestede4:liste").unwrap().from);
@@ -229,20 +231,20 @@ fn test_try_parse_list() {
 #[test]
 fn test_try_parse_pair() {
     assert_eq!(None, try_parse_pair(b""));
-    assert_eq!(Some(&Box::new(Pair::new())), try_parse_pair(b"de").unwrap().to_pair());
+    assert_eq!(Pair::new(), *try_parse_pair(b"de").unwrap().to_pair().unwrap());
     let mut pair1 = Pair::new();
     pair1.insert(String::from("wiki"), BencodeItem::new_bin(b"7:bencode", b"bencode"));
     pair1.insert(String::from("meaning"), BencodeItem::new_num(b"i42e", 42));
-    assert_eq!(Some(&Box::new(pair1.clone())), try_parse_pair(b"d4:wiki7:bencode7:meaningi42ee").unwrap().to_pair());
+    assert_eq!(pair1.clone(), *try_parse_pair(b"d4:wiki7:bencode7:meaningi42ee").unwrap().to_pair().unwrap());
     let mut pair2 = Pair::new();
     pair2.insert(String::from("list"),
-        BencodeItem::new_list(b"li1e4:str2d4:wiki7:bencode7:meaningi42eee", Box::new(vec![
+        BencodeItem::new_list(b"li1e4:str2d4:wiki7:bencode7:meaningi42eee", vec![
             BencodeItem::new_num(b"i1e", 1),
             BencodeItem::new_bin(b"4:str2", b"str2"),
-            BencodeItem::new_pair(b"d4:wiki7:bencode7:meaningi42ee", Box::new(pair1))
-        ]))
+            BencodeItem::new_pair(b"d4:wiki7:bencode7:meaningi42ee", pair1)
+        ])
     );
-    assert_eq!(Some(&Box::new(pair2)), try_parse_pair(b"d4:listli1e4:str2d4:wiki7:bencode7:meaningi42eeee").unwrap().to_pair());
+    assert_eq!(pair2, *try_parse_pair(b"d4:listli1e4:str2d4:wiki7:bencode7:meaningi42eeee").unwrap().to_pair().unwrap());
     assert_eq!(b"d4:wiki7:bencode7:meaningi42ee", try_parse_pair(b"d4:wiki7:bencode7:meaningi42ee").unwrap().from);
     assert_eq!(b"d4:listli1e4:str2d4:wiki7:bencode7:meaningi42eeee", try_parse_pair(b"d4:listli1e4:str2d4:wiki7:bencode7:meaningi42eeee").unwrap().from);
 }
