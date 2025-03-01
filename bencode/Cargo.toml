@@ -1,11 +1,4 @@
 [package]
-name = "bencode"
+name = "bencode2"
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
-serde = { version="1.0.217", optional=true }
-serde_json = { version="1.0.138", optional=true }
-
-[features]
-json_dump = ["dep:serde", "dep:serde_json"]
