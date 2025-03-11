@@ -1,3 +1,5 @@
+pub type Sha1Hash = [u8; 20];
+
 #[derive(Debug)]
 pub struct TorrentFile {
     pub path: String,
@@ -5,11 +7,15 @@ pub struct TorrentFile {
 }
 
 #[derive(Debug)]
-pub struct Torrent<'a> {
-    pub announce: Option<String>,
-    pub announce_list: Option<Vec<Vec<String>>>,
+pub struct Torrent {
+    pub announce: String,
+    pub announce_list: Vec<Vec<String>>,
     pub files: Vec<TorrentFile>,
-    pub pieces: Vec<&'a [u8]>,
+    pub pieces: Vec<Sha1Hash>,
     pub piece_size: i64,
-    pub info_hash: [u8; 20]
+    pub info_hash: Sha1Hash
+}
+
+pub struct Tracker<'a> {
+    torrent: &'a Torrent
 }

@@ -10,3 +10,7 @@ pub enum BencodeItem {
 
 pub struct BencodeDecoder;
 pub struct BencodeEncoder;
+
+pub trait TryAsRef<T> where T: ?Sized {
+    fn try_as_ref(&self) -> Option<&T>;
+}

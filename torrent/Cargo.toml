@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bencode = { path = "../bencode", features = ["json_dump"]}
+bencode = { path = "../bencode" }
+sha1 = { version = "0.10.6", default-features = false }
+rand = { version = "0.9.0", default-features = false, features = ["thread_rng"] }

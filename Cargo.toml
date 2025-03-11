@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bencode = { path = "./bencode", features = ["json_dump"]}
-torrent = { path = "./torrent"}
+bencode = { path = "./bencode" }
+torrent = { path = "./torrent" }
+tokio = { version = "1.43.0", features = ["full"] }

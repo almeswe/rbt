@@ -100,3 +100,31 @@ impl TryInto<String> for BencodeItem {
         }
     }
 }
+
+impl TryAsRef<str> for BencodeItem {
+    fn try_as_ref(&self) -> Option<&str> {
+        match &self {
+            BencodeItem::Str(x) => Some(x),
+            _ => None
+        }
+    }
+}
+
+impl TryAsRef<Vec<BencodeItem>> for BencodeItem {
+    fn try_as_ref(&self) -> Option<&Vec<BencodeItem>> {
+        match &self {
+            BencodeItem::List(x) => Some(x),
+            _ => None
+        }
+    }
+}
+
+
+impl TryAsRef<Vec<(String, BencodeItem)>> for BencodeItem {
+    fn try_as_ref(&self) -> Option<&Vec<(String, BencodeItem)>> {
+        match &self {
+            BencodeItem::Pair(x) => Some(x),
+            _ => None
+        }
+    }
+}
