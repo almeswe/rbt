@@ -8,6 +8,18 @@ type Bin = Vec<u8>;
 type List = Vec<BencodeItem>; 
 type Pair = Vec<(String, BencodeItem)>;
 
+fn owned_str_from_bin(x: Vec<u8>) -> Option<String> {
+    Some(String::from_utf8(x).ok()?)
+}
+
+fn owned_str_from_item(x: &BencodeItem) -> Option<String> {
+    match x {
+        BencodeItem::Bin(x) => Some(owned_str_from_bin(x.to_owned())?),
+        BencodeItem::Str(x) => Some(x.to_owned()),
+        _ => None
+    }
+}
+
 impl TorrentFile {
     pub fn new(path: String, size: i64) -> TorrentFile {
         TorrentFile { path: path, size: size }
@@ -40,10 +52,7 @@ impl Torrent {
         let item = Self::get_by_key(key, root)?;
         match item {
             BencodeItem::Str(x) => Some(Cow::Borrowed(x)),
-            BencodeItem::Bin(x) => {
-                let base = String::from_utf8(x.to_owned()).ok()?;
-                Some(Cow::Owned(base))
-            }
+            BencodeItem::Bin(x) => Some(Cow::Owned(owned_str_from_bin(x.to_owned())?)),
             _ => None
         }
     }
@@ -82,19 +91,16 @@ impl Torrent {
         let mut vec: Vec<Vec<String>> = vec![];
         let branch = Self::get_list_by_key("announce-list", root)?;
         for (idx, extv) in branch.iter().enumerate() {
-            vec.push(vec![]);       
+            vec.push(vec![]);
             let intv: &Vec<BencodeItem> = extv.try_as_ref()?;
-            dbg!(intv);
             for item in intv {
-                dbg!(item);
                 let owned = match item {
-                    //BencodeItem::Bin(x) => {
-                    //    
-                    //},
-                    //BencodeItem::Str(x) => x.to_owned(),
-                    //_ => return None
+                    BencodeItem::Str(x) => Some(x.to_owned()),
+                    BencodeItem::Bin(x) => Some(owned_str_from_bin(x.to_owned())?),
+                    _ => None
                 };
-                vec[idx].push(owned);
+                dbg!(&owned);
+                vec[idx].push(owned?);
             }
         }
         Some(vec)
@@ -108,20 +114,21 @@ impl Torrent {
     fn get_files(root: &Pair) -> Option<Vec<TorrentFile>> {
         let mut vec = vec![];
         let info = Self::get_pair_by_key("info", root)?;
-        let x = Self::get_list_by_key("files", info);
-        match x {
+        let list = Self::get_list_by_key("files", info);
+        match list {
             None => {
                 vec.push(TorrentFile {
                     path: Self::get_owned_str_by_key("name", info)?,
                     size: *Self::get_num_by_key("length", info)?
                 });
             },
-            Some(x) => {
-                for item in x {
+            Some(list) => {
+                for item in list {
                     let item = item.try_as_ref()?;
-                    let path: &str = Self::get_list_by_key("path", item)?
-                        .first()?
-                        .try_as_ref()?;
+                    dbg!(item);
+                    let path = owned_str_from_item(
+                        Self::get_list_by_key("path", item)?.first()?
+                    )?;
                     vec.push(TorrentFile {
                         path: path.to_owned(),
                         size: *Self::get_num_by_key("length", item)?
@@ -139,7 +146,8 @@ impl Torrent {
         let mut buf = [0u8; 20];
         let mut vec = Vec::with_capacity(x.len() / 20);
         for range in (0..x.len()).step_by(20) {
-            buf.copy_from_slice(&x[range..range+20]);
+            buf.copy_from_slice(&x[range..range
+                +20]);
             vec.push(buf);
         }
         Some(vec)
