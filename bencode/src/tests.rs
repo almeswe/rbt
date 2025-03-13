@@ -8,7 +8,6 @@ type en = BencodeEncoder;
 fn test_decode_n_encode(from: &[u8]) {
     let item = de::decode(from).unwrap();
     let item = en::encode(&item);
-    dbg!(String::from_utf8(item.clone()).unwrap());
     assert_eq!(from, item);
 }
 

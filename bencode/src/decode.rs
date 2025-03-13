@@ -101,10 +101,28 @@ impl TryInto<String> for BencodeItem {
     }
 }
 
+impl TryAsRef<i64> for BencodeItem {
+    fn try_as_ref(&self) -> Option<&i64> {
+        match &self {
+            BencodeItem::Num(x) => Some(x),
+            _ => None
+        }
+    }
+}
+
 impl TryAsRef<str> for BencodeItem {
     fn try_as_ref(&self) -> Option<&str> {
         match &self {
             BencodeItem::Str(x) => Some(x),
+            _ => None
+        }
+    }
+}
+
+impl TryAsRef<Bin> for BencodeItem {
+    fn try_as_ref(&self) -> Option<&Bin> {
+        match &self {
+            BencodeItem::Bin(x) => Some(x),
             _ => None
         }
     }
