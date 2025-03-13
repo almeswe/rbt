@@ -7,3 +7,6 @@ edition = "2021"
 bencode = { path = "../bencode" }
 sha1 = { version = "0.10.6", default-features = false }
 rand = { version = "0.9.0", default-features = false, features = ["thread_rng"] }
+reqwest = "0.12.13"
+tracing = "0.1.41"
+port_scanner = "0.1.5"

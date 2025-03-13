@@ -16,6 +16,27 @@ pub struct Torrent {
     pub info_hash: Sha1Hash
 }
 
+#[derive(Debug)]
+pub struct Peer {
+    pub addr: std::net::SocketAddrV4
+}
+
+#[derive(Debug)]
 pub struct Tracker<'a> {
-    torrent: &'a Torrent
+    pub downloaded: usize,
+    pub peer_id: [u8; 20],
+    pub client: &'a reqwest::Client,
+    pub torrent: &'a Torrent
+}
+
+#[derive(Debug)]
+pub struct TrackerError {
+    pub text: String
+}
+
+#[derive(Debug)]
+pub struct TrackerResponse {
+    pub peers: Vec<Peer>,
+    pub interval: u32,
+    pub error: Option<TrackerError>
 }

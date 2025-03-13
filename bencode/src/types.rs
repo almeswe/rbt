@@ -1,3 +1,7 @@
+pub type Bin = Vec<u8>;
+pub type List = Vec<BencodeItem>; 
+pub type Pair = Vec<(String, BencodeItem)>;
+
 #[derive(Debug, PartialEq)]
 pub enum BencodeItem {
     Num(i64),

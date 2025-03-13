@@ -7,3 +7,6 @@ edition = "2021"
 bencode = { path = "./bencode" }
 torrent = { path = "./torrent" }
 tokio = { version = "1.43.0", features = ["full"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing = "0.1.41"
+reqwest = "0.12.13"
