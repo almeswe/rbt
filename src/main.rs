@@ -3,6 +3,13 @@
 use torrent::types::*;
 use bencode::types::BencodeDecoder;
 
+use std::thread;
+use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicU32, Ordering};
+
+//use tokio::sync::RwLock;
+
+use std::env;
 use std::path::Path;
 use std::time::Duration;
 
@@ -15,6 +22,8 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client, ClientBuilder
 };
+
+static PEER_HS_THREADS_MAX: u32 = 6;
 
 fn init_tracing_subscriber() {
     tracing_subscriber::registry()
@@ -47,13 +56,69 @@ fn init_torrent_from_file<P: AsRef<Path>>(path: P) -> Torrent {
     torrent
 }
 
+async fn ask_peers(mut tracker: Tracker) {
+    let peers = tracker.request().await.unwrap();
+    let tracker = Arc::new(RwLock::new(tracker));
+    let counter = Arc::new(AtomicU32::new(0));
+    for peer in peers {
+        if counter.load(Ordering::SeqCst) >= PEER_HS_THREADS_MAX {
+            thread::sleep(Duration::from_millis(100));
+            continue;
+        }
+        let (tracker, counter, peer) = (
+            Arc::clone(&tracker),
+            Arc::clone(&counter),
+            peer.clone(), 
+        );
+        counter.fetch_add(1, Ordering::SeqCst);
+        thread::spawn(move || {
+            let tracker = tracker.read().unwrap();
+            let stream = peer.handshake(
+                &tracker.peer_id,
+                &tracker.torrent.info_hash
+            );
+            if let Some(_) = stream {
+                tracing::debug!("connected to peer at {x}", x = &peer.addr);
+            }
+            else {
+                tracing::debug!("connection to peer at {x} failed", x = &peer.addr);
+            }
+            counter.fetch_sub(1, Ordering::SeqCst);
+        });
+        //tokio::spawn(async move {
+        //    let tracker = tracker.read().await;
+        //    let stream = peer.handshake(&tracker.peer_id,
+        //        &tracker.torrent.info_hash).await;
+        //    if let Some(_) = stream {
+        //        tracing::debug!("connected to peer at {x}", x = &peer.addr);
+        //    }
+        //    else {
+        //        tracing::debug!("connection to peer at {x} failed", x = &peer.addr);
+        //    }
+        //    counter.fetch_sub(1, Ordering::SeqCst);
+        //});
+    }
+    while counter.load(Ordering::SeqCst) != 0 {
+        thread::sleep(Duration::from_millis(100));
+        //tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+fn get_torrent_path() -> String {
+    let argv = env::args().collect::<Vec<String>>();
+    if argv.len() != 2 {
+        panic!("usage: ./rbt [path_to_torrent]");
+    }
+    return argv[1].clone();
+}
+
 //todo: change `path` to `argv[1]`
-#[tokio::main(flavor = "multi_thread")]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let path = "/home/almeswe/Projects/rbt/data/t2.torrent"; 
+    let path = get_torrent_path();
     init_tracing_subscriber();
     let client = init_reqwest_client();
     let torrent = init_torrent_from_file(path);
-    let mut tracker = Tracker::new(&torrent, &client);
-    tracker.request().await.unwrap();
+    let tracker = Tracker::new(torrent, client);
+    ask_peers(tracker).await;
 }

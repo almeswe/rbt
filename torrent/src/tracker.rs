@@ -18,7 +18,7 @@ fn url_string_as_bytes(x: &[u8]) -> String {
     unsafe { String::from_utf8_unchecked(x.to_owned()) }
 }
 
-impl<'a> Tracker<'a> {
+impl Tracker {
     fn gen_peer_id() -> [u8; 20] {
         let mut id = [0u8; 20];
         let mut rng = rand::rng();
@@ -66,9 +66,17 @@ impl<'a> Tracker<'a> {
     }
 }
 
-impl<'a> Tracker<'a> {
-    pub fn new(torrent: &'a Torrent, client: &'a Client) -> Self {
-        Self { downloaded: 0, peer_id: Self::gen_peer_id(), torrent, client }
+impl Tracker {
+    pub fn new(torrent: Torrent, client: Client) -> Self {
+        Self { 
+            downloaded: 0,
+            peer_id: Self::gen_peer_id(),
+            client: client,
+            torrent: torrent,
+            //peers: None,
+            interval: None,
+            error: None
+        }
     }
 
     fn get_peers(&self, pair: &Pair) -> Option<Vec<Peer>> {
@@ -83,7 +91,7 @@ impl<'a> Tracker<'a> {
             let port = (from[i + 4] as u16) << 8 | 
                         from[i + 5] as u16;
             let addr = SocketAddrV4::new(ipv4, port as u16);
-            peers.push(Peer { addr });
+            peers.push(Peer::new(self.interval.unwrap(), addr));
         }
         tracing::debug!("found {x} peers.", x = peers.len());
         Some(peers)
@@ -105,22 +113,25 @@ impl<'a> Tracker<'a> {
         }
     }
 
-    pub async fn request(&mut self) -> Result<TrackerResponse> {
+    pub async fn request(&mut self) -> Option<Vec<Peer>> {
         let url = Url::parse_with_params(&self.torrent.announce, self.get_tracker_params()).unwrap();
         tracing::debug!("tracker request url: {url:?}");
-        let response = self.client.get(url).send().await?;
+        let response = self.client.get(url).send().await.ok()?;
         tracing::debug!("tracker response status: {x}", x = response.status());
-        let response = response.bytes().await?;
+        let response = response.bytes().await.ok()?;
         tracing::debug!("tracker response text  : {x}", x = url_string_as_bytes(&response));
         tracing::debug!("tracker response length: {x}", x = response.len());
         let root = BencodeDecoder::decode(&response).unwrap();
         let pair = root.try_as_ref().unwrap() as &Pair;
-        let tracker_response = TrackerResponse { 
-            peers: self.get_peers(pair).unwrap(),
-            interval: self.get_interval(pair).unwrap(),
-            error: self.get_error(pair)
-        };
-        tracing::debug!("tracker response: {x:?}", x = &tracker_response);
-        Ok(tracker_response)
+        self.interval = self.get_interval(pair);
+        self.error = self.get_error(pair);
+        let peers = self.get_peers(pair).unwrap();
+        //self.peers = .unwrap();
+        //let tracker_response = TrackerResponse {
+        //    peers: &self.peers, interval: &self.interval, error: &self.error 
+        //};
+        //tracing::debug!("tracker response: {x:?}", x = &tracker_response);
+        //Ok(self.peers)
+        Some(peers)
     }
 }

@@ -16,17 +16,19 @@ pub struct Torrent {
     pub info_hash: Sha1Hash
 }
 
-#[derive(Debug)]
-pub struct Peer {
-    pub addr: std::net::SocketAddrV4
+#[derive(Debug, Clone)]
+pub enum PeerStatus {
+    AmChoking,
+    AmIntereseted,
+    PeerChoking,
+    PeerInterested
 }
 
-#[derive(Debug)]
-pub struct Tracker<'a> {
-    pub downloaded: usize,
-    pub peer_id: [u8; 20],
-    pub client: &'a reqwest::Client,
-    pub torrent: &'a Torrent
+#[derive(Debug, Clone)]
+pub struct Peer {
+    pub choked: PeerStatus,
+    pub timeout: u32,
+    pub addr: std::net::SocketAddrV4,
 }
 
 #[derive(Debug)]
@@ -35,8 +37,20 @@ pub struct TrackerError {
 }
 
 #[derive(Debug)]
-pub struct TrackerResponse {
-    pub peers: Vec<Peer>,
-    pub interval: u32,
+pub struct TrackerResponse<'a> {
+    pub peers: &'a Option<Vec<Peer>>,
+    pub interval: &'a Option<u32>,
+    pub error: &'a Option<TrackerError>
+}
+
+#[derive(Debug)]
+pub struct Tracker {
+    pub downloaded: usize,
+    pub peer_id: [u8; 20],
+    pub client: reqwest::Client,
+    pub torrent: Torrent,
+    // set after request is sent
+    //pub peers: Vec<Peer>,
+    pub interval: Option<u32>,
     pub error: Option<TrackerError>
 }
