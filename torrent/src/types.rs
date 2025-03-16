@@ -1,12 +1,12 @@
 pub type Sha1Hash = [u8; 20];
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TorrentFile {
     pub path: String,
     pub size: i64
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Torrent {
     pub announce: String,
     pub announce_list: Vec<Vec<String>>,
@@ -24,10 +24,24 @@ pub enum PeerStatus {
     PeerInterested
 }
 
+pub enum PeerMsg {
+    KeepAlive(Vec<u8>),
+    Have(Vec<u8>),
+    Choke(Vec<u8>),
+    Unchoke(Vec<u8>),
+    Request(Vec<u8>),
+    BitField(Vec<u8>),
+    Handshake(Vec<u8>),
+    Interested(Vec<u8>),
+    NotInterested(Vec<u8>)
+}
+
 #[derive(Debug, Clone)]
 pub struct Peer {
-    pub choked: PeerStatus,
+    pub choked: bool,
     pub timeout: u32,
+    //pub have: Vec<u32>,
+    pub bitfield: Option<Vec<u8>>,
     pub addr: std::net::SocketAddrV4,
 }
 

@@ -3,13 +3,11 @@
 use torrent::types::*;
 use bencode::types::BencodeDecoder;
 
+use std::net::TcpStream;
 use std::thread;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-//use tokio::sync::RwLock;
-
-use std::env;
 use std::path::Path;
 use std::time::Duration;
 
@@ -23,7 +21,7 @@ use reqwest::{
     Client, ClientBuilder
 };
 
-static PEER_HS_THREADS_MAX: u32 = 6;
+static PEER_HS_THREADS_MAX: u32 = 12;
 
 fn init_tracing_subscriber() {
     tracing_subscriber::registry()
@@ -51,74 +49,77 @@ fn init_torrent_from_file<P: AsRef<Path>>(path: P) -> Torrent {
     tracing::debug!("torrent.announce:      {x:?}", x = torrent.announce);
     tracing::debug!("torrent.announce_list: {x:?}", x = torrent.announce_list);
     tracing::debug!("torrent.files:         {x:?}", x = torrent.files);
-    tracing::debug!("torrent.piece_size:    {x:?}", x = torrent.piece_size);
+    tracing::info!("torrent.piece_size:    {x:?}", x = torrent.piece_size);
     tracing::debug!("torrent.info_hash:     {x:?}", x = torrent.info_hash);
     torrent
 }
 
-async fn ask_peers(mut tracker: Tracker) {
+async fn ask_peers(mut tracker: Tracker) -> Arc<RwLock<Vec<(Peer, TcpStream)>>> {
+    let alive = Arc::new(RwLock::new(Vec::new()));
     let peers = tracker.request().await.unwrap();
     let tracker = Arc::new(RwLock::new(tracker));
     let counter = Arc::new(AtomicU32::new(0));
     for peer in peers {
-        if counter.load(Ordering::SeqCst) >= PEER_HS_THREADS_MAX {
+        while counter.load(Ordering::SeqCst) >= PEER_HS_THREADS_MAX {
             thread::sleep(Duration::from_millis(100));
-            continue;
         }
-        let (tracker, counter, peer) = (
+        let mut peer = peer.clone();
+        let (alive, tracker, counter) = (
+            Arc::clone(&alive),
             Arc::clone(&tracker),
-            Arc::clone(&counter),
-            peer.clone(), 
+            Arc::clone(&counter)
         );
         counter.fetch_add(1, Ordering::SeqCst);
         thread::spawn(move || {
             let tracker = tracker.read().unwrap();
-            let stream = peer.handshake(
-                &tracker.peer_id,
-                &tracker.torrent.info_hash
-            );
-            if let Some(_) = stream {
-                tracing::debug!("connected to peer at {x}", x = &peer.addr);
+            let conn = peer.handshake(&tracker);
+            if let Err(e) = conn {
+                tracing::error!("[FAILED] {addr}: {e}", addr = &peer.addr);
             }
             else {
-                tracing::debug!("connection to peer at {x} failed", x = &peer.addr);
+                let mut peers = alive.write().unwrap();
+                peers.push((peer, conn.unwrap()));
             }
             counter.fetch_sub(1, Ordering::SeqCst);
         });
-        //tokio::spawn(async move {
-        //    let tracker = tracker.read().await;
-        //    let stream = peer.handshake(&tracker.peer_id,
-        //        &tracker.torrent.info_hash).await;
-        //    if let Some(_) = stream {
-        //        tracing::debug!("connected to peer at {x}", x = &peer.addr);
-        //    }
-        //    else {
-        //        tracing::debug!("connection to peer at {x} failed", x = &peer.addr);
-        //    }
-        //    counter.fetch_sub(1, Ordering::SeqCst);
-        //});
     }
     while counter.load(Ordering::SeqCst) != 0 {
         thread::sleep(Duration::from_millis(100));
-        //tokio::time::sleep(Duration::from_millis(100)).await;
     }
+    alive
+}
+
+async fn download(torrent: &Torrent, peers: Arc<RwLock<Vec<(Peer, TcpStream)>>>) -> std::io::Result<()> {
+    let mut peers = peers.write().unwrap();
+    // make it sequential for now..
+    for (index, piece) in torrent.pieces.iter().enumerate() {
+        let length = peers.len();
+        let peer = &mut peers[index % length];
+        tracing::debug!("[DOWNLOAD] {addr} piece no. {index}", addr = &peer.0.addr);
+        let data = peer.0.request(index, torrent.piece_size as usize, &mut peer.1)?;
+        tracing::debug!("piece length: {len}", len = data.len());
+        thread::sleep(Duration::from_secs(2));
+    }
+    Ok(())
 }
 
 fn get_torrent_path() -> String {
-    let argv = env::args().collect::<Vec<String>>();
+    let argv = std::env::args().collect::<Vec<String>>();
     if argv.len() != 2 {
-        panic!("usage: ./rbt [path_to_torrent]");
+        eprintln!("usage: ./rbt [path_to_torrent]");
+        std::process::exit(1);
     }
     return argv[1].clone();
 }
 
-//todo: change `path` to `argv[1]`
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let path = get_torrent_path();
     init_tracing_subscriber();
     let client = init_reqwest_client();
     let torrent = init_torrent_from_file(path);
+    let torrent2 = torrent.clone();
     let tracker = Tracker::new(torrent, client);
-    ask_peers(tracker).await;
+    let peers = ask_peers(tracker).await;
+    download(&torrent2, peers).await.unwrap();
 }

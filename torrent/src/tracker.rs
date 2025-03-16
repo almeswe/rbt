@@ -73,7 +73,6 @@ impl Tracker {
             peer_id: Self::gen_peer_id(),
             client: client,
             torrent: torrent,
-            //peers: None,
             interval: None,
             error: None
         }
@@ -93,7 +92,7 @@ impl Tracker {
             let addr = SocketAddrV4::new(ipv4, port as u16);
             peers.push(Peer::new(self.interval.unwrap(), addr));
         }
-        tracing::debug!("found {x} peers.", x = peers.len());
+        tracing::info!("got {x} peer(s)", x = peers.len());
         Some(peers)
     }
 
@@ -102,6 +101,7 @@ impl Tracker {
         if let Some(min) = get_num_by_key("min interval", pair) {
             max = *min;    
         }
+        tracing::info!("timeout: {max}ms");
         Some(max as u32)
     }
 
@@ -109,7 +109,10 @@ impl Tracker {
         let reason = get_owned_str_by_key("failure reason", pair);
         match reason {
             None => None, 
-            Some(x) => Some(TrackerError { text: x })
+            Some(x) => { 
+                tracing::error!("[TRACKER] {x}");
+                Some(TrackerError { text: x })
+            }
         }
     }
 
@@ -126,12 +129,6 @@ impl Tracker {
         self.interval = self.get_interval(pair);
         self.error = self.get_error(pair);
         let peers = self.get_peers(pair).unwrap();
-        //self.peers = .unwrap();
-        //let tracker_response = TrackerResponse {
-        //    peers: &self.peers, interval: &self.interval, error: &self.error 
-        //};
-        //tracing::debug!("tracker response: {x:?}", x = &tracker_response);
-        //Ok(self.peers)
         Some(peers)
     }
 }
